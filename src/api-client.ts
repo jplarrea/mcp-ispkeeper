@@ -14,6 +14,9 @@ interface RequestParams {
 
 type Paging = { page?: number; per_page?: number };
 
+// Upper bound when walking a client's invoices/collections/tickets/additionals (50 records/page).
+const MAX_CLIENT_PAGES = 40;
+
 export class ISPKeeperClient {
   private headers: Record<string, string>;
 
@@ -99,20 +102,52 @@ export class ISPKeeperClient {
 
   // ─── Client Services ────────────────────────────────────
 
-  async getClientInvoices(clienteId: string) {
-    return this.get(`/cliente/${clienteId}/facturas`);
+  /**
+   * Client-scoped lists (facturas, cobranzas, tickets, adicionales) are paginated and the API
+   * ignores per_page there (facturas/cobranzas are fixed at 50). With `page` set, return that
+   * page; without it, walk every page and return the first page's paginator with all records
+   * merged into `data`, so a client's full history comes back in one call.
+   */
+  async getClientPaged(endpoint: string, params?: Paging) {
+    if (params?.page !== undefined) {
+      return this.get(endpoint, { page: params.page, per_page: params.per_page });
+    }
+    const first = await this.get(endpoint, { page: 1, per_page: params?.per_page }) as {
+      data?: unknown[]; last_page?: number; [key: string]: unknown;
+    };
+    const lastPage = Number(first?.last_page ?? 1);
+    if (!Array.isArray(first?.data) || lastPage <= 1) return first;
+    const pages = Math.min(lastPage, MAX_CLIENT_PAGES);
+    const records = [...first.data];
+    for (let page = 2; page <= pages; page++) {
+      const next = await this.get(endpoint, { page, per_page: params?.per_page }) as { data?: unknown[] };
+      if (Array.isArray(next?.data)) records.push(...next.data);
+    }
+    return {
+      ...first,
+      data: records,
+      from: records.length ? 1 : null,
+      to: records.length,
+      next_page_url: null,
+      pages_fetched: pages,
+      truncated: pages < lastPage,
+    };
   }
 
-  async getClientCollections(clienteId: string) {
-    return this.get(`/cliente/${clienteId}/cobranzas`);
+  async getClientInvoices(clienteId: string, params?: Paging) {
+    return this.getClientPaged(`/cliente/${clienteId}/facturas`, params);
   }
 
-  async getClientTickets(clienteId: string) {
-    return this.get(`/cliente/${clienteId}/tickets`);
+  async getClientCollections(clienteId: string, params?: Paging) {
+    return this.getClientPaged(`/cliente/${clienteId}/cobranzas`, params);
   }
 
-  async getClientAdditionals(clienteId: string) {
-    return this.get(`/cliente/${clienteId}/adicionales`);
+  async getClientTickets(clienteId: string, params?: Paging) {
+    return this.getClientPaged(`/cliente/${clienteId}/tickets`, params);
+  }
+
+  async getClientAdditionals(clienteId: string, params?: Paging) {
+    return this.getClientPaged(`/cliente/${clienteId}/adicionales`, params);
   }
 
   async getClientConnections(

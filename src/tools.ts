@@ -113,30 +113,30 @@ export function registerTools(server: McpServer): void {
 
   server.tool(
     "get_client_services",
-    "Get services for a specific client: invoices, collections, tickets, additionals, internet/TV/phone connections, or subscriptions." + NO_FABRICATE,
+    "Get services for a specific client: invoices, collections, tickets, additionals, internet/TV/phone connections, or subscriptions. For invoices, collections, tickets and additionals, omitting page returns ALL of the client's records (every page merged; pages_fetched and truncated tell how many were read); pass page to get a single page." + NO_FABRICATE,
     {
       client_id: z.string().describe("Client ID"),
       service: z.enum([
         "invoices", "collections", "tickets", "additionals",
         "internet_connections", "tv_connections", "phone_connections", "subscriptions",
       ]).describe("Type of service/data to retrieve"),
-      page: z.number().optional().describe("Page number (connections and subscriptions only)"),
-      per_page: z.number().optional().describe("Results per page (connections and subscriptions only)"),
+      page: z.number().optional().describe("Page number. For invoices/collections/tickets/additionals, omit it to get every page merged"),
+      per_page: z.number().optional().describe("Results per page (the API ignores it for invoices and collections, fixed at 50)"),
     },
     async ({ client_id, service, page, per_page }) => {
       let data: unknown;
       switch (service) {
         case "invoices":
-          data = await client.getClientInvoices(client_id);
+          data = await client.getClientInvoices(client_id, { page, per_page });
           break;
         case "collections":
-          data = await client.getClientCollections(client_id);
+          data = await client.getClientCollections(client_id, { page, per_page });
           break;
         case "tickets":
-          data = await client.getClientTickets(client_id);
+          data = await client.getClientTickets(client_id, { page, per_page });
           break;
         case "additionals":
-          data = await client.getClientAdditionals(client_id);
+          data = await client.getClientAdditionals(client_id, { page, per_page });
           break;
         case "internet_connections":
           data = await client.getClientConnections(client_id, "internet", { page, per_page });

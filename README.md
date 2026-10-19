@@ -111,7 +111,7 @@ Password fields come back as `"[REDACTED]"` (see `ISPKEEPER_SHOW_SECRETS`). That
 | Include deleted clients | `search_clients` with `borrado: "1"` (default `"0"` hides them) |
 | A client's internet / TV / phone services | `get_client_services` with `service: internet_connections \| tv_connections \| phone_connections` |
 | A client's subscriptions | `get_client_services` with `service: subscriptions` (filters `list_subscriptions` by client; the API has no client-scoped route) |
-| A client's billing history | `get_client_services` with `invoices` or `collections` |
+| A client's billing history | `get_client_services` with `invoices` or `collections`, without `page`: the tool walks every page and returns all records merged (`pages_fetched`, `truncated`). Pass `page` for a single page of 50 (the API ignores `per_page` there) |
 | SSMovil line status, consumption, bonuses | `get_phone_connection` with `include: "imowi"` (live query to the Imowi platform; returns `{ok, data}`) |
 | Chat messages and files of a ticket | `get_ticket` with `include: "chat_attachments"` |
 | NAP box / PON / backbone of an internet connection | `get_internet_connection` → `conexion_boca_ftth` is the FTTx port ID → `get_fttx_trace` with `resource_type: "port"` returns `{puerto, caja, pon, backbone}`. Alternatively `list_internet_connections` with `relaciones: "boc"` nests the port and its box |
